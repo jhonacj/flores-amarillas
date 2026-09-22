@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Jardín Botánico</title>
+<title>Jardín Botánico Tipográfico</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
@@ -15,8 +15,8 @@
   
   canvas.settled{ animation: breathe 6s ease-in-out infinite; }
   @keyframes breathe{
-    0%,100%{ filter: drop-shadow(0 0 10px rgba(255,255,255,.05)); }
-    50%{ filter: drop-shadow(0 0 25px rgba(255,255,255,.15)); }
+    0%,100%{ filter: drop-shadow(0 0 10px rgba(255,218,71,.05)); }
+    50%{ filter: drop-shadow(0 0 25px rgba(255,218,71,.12)); }
   }
 
   .gate{ position:fixed; inset:0; z-index:3; display:flex; flex-direction:column;
@@ -28,19 +28,19 @@
     color:#fff; font-family:"Fraunces",serif; font-style:italic; font-size:1.8rem;
     text-align:center; padding:10px; width:min(85vw,400px); outline:none; transition:border-color .3s; }
   .gate input::placeholder{ color:rgba(255,255,255,.15); }
-  .gate input:focus{ border-color:rgba(255,255,255,.9); }
+  .gate input:focus{ border-color:rgba(255,218,71,.9); }
   .gate button{ margin-top:15px; background:none; cursor:pointer; border:1px solid rgba(255,255,255,.4);
     color:rgba(255,255,255,.9); font-family:"Fraunces",serif; font-size:1.05rem;
     padding:12px 35px; border-radius:30px; transition:all .3s ease; }
-  .gate button:hover{ color:#000; border-color:#fff; background:#fff; box-shadow:0 0 20px rgba(255,255,255,.3); }
+  .gate button:hover{ color:#000; border-color:#ffda47; background:#ffda47; box-shadow:0 0 20px rgba(255,218,71,.4); }
 
   .overlay{ position:fixed; left:0; right:0; bottom:30px; z-index:2;
     display:flex; justify-content:center;
     opacity:0; transition:opacity 1.5s ease; pointer-events:none; }
-  .overlay button{ pointer-events:auto; background:rgba(0,0,0,.6); cursor:pointer; border:1px solid rgba(255,255,255,.25);
-    color:rgba(255,255,255,.7); font-family:"Fraunces",serif; font-size:.9rem; letter-spacing:.05em; 
+  .overlay button{ pointer-events:auto; background:rgba(0,0,0,.6); cursor:pointer; border:1px solid rgba(255,218,71,.3);
+    color:rgba(255,218,71,.8); font-family:"Fraunces",serif; font-size:.9rem; letter-spacing:.05em; 
     padding:10px 35px; border-radius:30px; backdrop-filter:blur(5px); transition:all .3s ease; }
-  .overlay button:hover{ color:#fff; border-color:rgba(255,255,255,.9); box-shadow:0 0 15px rgba(255,255,255,.2); }
+  .overlay button:hover{ color:#000; border-color:#ffda47; background:#ffda47; box-shadow:0 0 15px rgba(255,218,71,.4); }
 </style>
 </head>
 <body>
@@ -60,14 +60,8 @@
 <script>
 const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
-const PALETTES = {
-  'a': ['#8B0000','#E85D1E','#FFD700'], 
-  'e': ['#000080','#1E90FF','#87CEFA'], 
-  'i': ['#4B0082','#FF1493','#FFC0CB'], 
-  'o': ['#2a004d','#8A2BE2','#DDA0DD'], 
-  'u': ['#003311','#228B22','#98FB98'], 
-  'def': ['#8B4513','#D9720F','#FFF8DC'] 
-};
+// PALETA ESTANDARIZADA: Tonos Tierra, Naranja Vibrante y Oro Solar
+const MAIN_PALETTE = ['#5c2e0b', '#d97604', '#ffda47'];
 
 function hashSeed(str){
   let h = 0; for(let i=0;i<str.length;i++) h = (Math.imul(31,h) + str.charCodeAt(i)) | 0;
@@ -82,34 +76,27 @@ function mulberry32(a){
   };
 }
 
-// Análisis de datos para definir los colores biológicos
 function analyzeName(str){
   const s = str.normalize('NFD').replace(/[\u0300-\u036f]/g,'');
-  let chars = []; let counts = {a:0,e:0,i:0,o:0,u:0};
+  let chars = []; 
   for(let i=0; i<str.length; i++) {
     if(str[i].trim() === '') continue;
     chars.push(str[i].toUpperCase()); 
-    let lower = s[i].toLowerCase();
-    if(counts[lower] !== undefined) counts[lower]++;
   }
-  let max = 0, dom = 'def';
-  for(let v of ['a','e','i','o','u']) if(counts[v] > max) { max = counts[v]; dom = v; }
-  return { palette: PALETTES[max===0?'def':dom], chars, text: str.trim() };
+  return { chars, text: str.trim() };
 }
 
 const easeOutCubic = t => 1-Math.pow(1-t,3);
 const easeOutBack = t => { const c1=1.70158,c3=c1+1; return 1+c3*Math.pow(t-1,3)+c1*Math.pow(t-1,2); };
 
-// MAPA TIPOGRÁFICO EXACTO AL TAMAÑO DEL RECEPTÁCULO
 function createLetterMap(char, maxRadius){
-  const size = Math.ceil(maxRadius * 2); // Diámetro exacto
+  const size = Math.ceil(maxRadius * 2); 
   const c = document.createElement('canvas');
   c.width = size; c.height = size;
   const ctx = c.getContext('2d', {willReadFrequently: true});
   
   ctx.fillStyle = '#000'; ctx.fillRect(0,0,size,size);
   ctx.fillStyle = '#fff';
-  // La letra escala siempre al 75% del Receptáculo Floral
   ctx.font = `bold ${size*0.75}px "Fraunces", serif`;
   ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
   ctx.fillText(char, size/2, size/2 + size*0.06); 
@@ -117,7 +104,6 @@ function createLetterMap(char, maxRadius){
   return { data: ctx.getImageData(0,0,size,size).data, size };
 }
 
-// SISTEMA-L BOTÁNICO ORIGINAL
 function buildPlant(rnd, baseX, groundY, stepLen, branchAngleBase, isLetter){
   let x=baseX, y=groundY, heading=90;
   const segs=[], leaves=[];
@@ -144,7 +130,7 @@ function buildPlant(rnd, baseX, groundY, stepLen, branchAngleBase, isLetter){
   leaves.push({x:x, y:y, angle:heading, length:stepLen, width:stepLen*0.48});
   x=branchPoint.x; y=branchPoint.y; heading=branchPoint.heading;
 
-  if(isLetter) fwd(stepLen * 0.8); // Tramo final extra para las letras principales
+  if(isLetter) fwd(stepLen * 0.8); 
 
   segs.forEach((s,i)=> s.tone = i/(segs.length-1));
   return { segments:segs, leaves, topX:x, topY:y };
@@ -163,10 +149,12 @@ function buildFlower(rnd, cx, cy, petalCount, radius, charStr){
   
   const golden = 137.508 * Math.PI/180;
   const isLetter = !!charStr;
-  
-  const dotCount = isLetter ? Math.floor(450 + rnd()*100) : Math.floor(60 + rnd()*40); 
-  // Ampliamos el Receptáculo para las flores tipográficas
   const dotMaxR = isLetter ? radius*0.55 : radius*0.35; 
+  
+  // SOLUCIÓN DE RESOLUCIÓN: Densidad constante basada en el área (radio al cuadrado)
+  const area = dotMaxR * dotMaxR;
+  // Limitamos a 2500 puntos máximos por flor para no saturar dispositivos
+  const dotCount = Math.min(2500, Math.floor(area * (isLetter ? 0.35 : 0.08))); 
   
   const letterMap = isLetter ? createLetterMap(charStr, dotMaxR) : null;
 
@@ -218,6 +206,22 @@ function buildGarden(nameData, w, h){
   const baseGroundY = h * 0.92;
   const grass = buildGrass(rnd, w, baseGroundY);
 
+  // Generar Estrellas
+  const stars = [];
+  for(let i=0; i<100; i++){
+    stars.push({ x: rnd()*w, y: rnd()*h*0.75, r: 0.5 + rnd()*1.2, offset: rnd()*Math.PI*2 });
+  }
+
+  // Generar Luciérnagas
+  const fireflies = [];
+  for(let i=0; i<30; i++){
+    fireflies.push({ 
+      x: rnd()*w, y: h*0.5 + rnd()*h*0.4, 
+      speed: 0.0005 + rnd()*0.0015, offset: rnd()*Math.PI*2, r: 1.5 + rnd()*2 
+    });
+  }
+
+  // Flores de fondo
   const numBg = 20 + Math.floor(rnd()*15); 
   for(let i=0; i<numBg; i++){
     const z = rnd() * 0.5; 
@@ -234,6 +238,7 @@ function buildGarden(nameData, w, h){
     plants.push({ ...plant, petalCount, flower, z, isLetter:false, delay: z*1000 + rnd()*600 });
   }
   
+  // Flores frontales (Letras)
   const chars = nameData.chars;
   const maxAncho = Math.min(w * 0.85, 1100);
   const spacing = maxAncho / Math.max(1, chars.length);
@@ -258,7 +263,7 @@ function buildGarden(nameData, w, h){
     plants.push({ ...plant, char:chars[i], petalCount, flower, z, isLetter:true, delay });
   }
   
-  return { palette: nameData.palette, text: nameData.text, grass, plants, h };
+  return { text: nameData.text, grass, stars, fireflies, plants, h };
 }
 
 function buildTimeline(garden){
@@ -354,13 +359,13 @@ function drawLeaf(leaf,e){
   ctx.bezierCurveTo(L*0.75,w*1.0, L*0.25,w*1.2, 0,0);
   ctx.fill(); ctx.restore();
 }
-function drawPetal(petal,e,palette){
+function drawPetal(petal, e){
   ctx.save(); ctx.translate(petal.cx,petal.cy); ctx.rotate(-petal.theta*Math.PI/180); ctx.scale(e,e);
   const len=petal.len, w=petal.width;
   const grad = ctx.createLinearGradient(0,0,0,-len);
-  grad.addColorStop(0, palette[1]); grad.addColorStop(1, palette[2]);
+  grad.addColorStop(0, MAIN_PALETTE[1]); grad.addColorStop(1, MAIN_PALETTE[2]);
   ctx.fillStyle = grad;
-  ctx.shadowColor = palette[0]; ctx.shadowBlur = 8;
+  ctx.shadowColor = MAIN_PALETTE[0]; ctx.shadowBlur = 8;
   ctx.beginPath(); ctx.moveTo(0,0);
   ctx.bezierCurveTo(-w*0.55,-len*0.25, -w*0.65,-len*0.65, 0,-len);
   ctx.bezierCurveTo(w*0.65,-len*0.65, w*0.55,-len*0.25, 0,0);
@@ -371,8 +376,8 @@ function drawBaseDot(dot,e){
   ctx.fillStyle='#2b1a0d'; 
   ctx.beginPath(); ctx.arc(dot.x,dot.y,dot.r*e,0,Math.PI*2); ctx.fill();
 }
-function drawGlowDot(dot, e, palette){
-  ctx.shadowColor = palette[2]; 
+function drawGlowDot(dot, e){
+  ctx.shadowColor = MAIN_PALETTE[2]; 
   ctx.shadowBlur = 10;
   ctx.fillStyle = '#fff4d9'; 
   ctx.beginPath(); ctx.arc(dot.x,dot.y,dot.r*e,0,Math.PI*2); ctx.fill();
@@ -384,7 +389,7 @@ function drawTitle(text, e, w, h){
   ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
   ctx.shadowColor = 'rgba(255,255,255,0.4)';
   ctx.shadowBlur = 10;
-  const fontSize = Math.min(w * 0.05, 32);
+  const fontSize = Math.min(w * 0.045, 28);
   ctx.font = `italic 400 ${fontSize}px "Fraunces", serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
@@ -398,6 +403,15 @@ function renderAt(elapsed){
   const w=canvas.width/dpr, h=canvas.height/dpr;
   ctx.clearRect(0,0,w,h); 
   
+  // Dibujar Estrellas Animadas
+  ctx.fillStyle = '#ffffff';
+  garden.stars.forEach(s => {
+    ctx.globalAlpha = 0.2 + Math.sin(elapsed * 0.001 + s.offset) * 0.2;
+    ctx.beginPath(); ctx.arc(s.x, s.y, s.r, 0, Math.PI*2); ctx.fill();
+  });
+  ctx.globalAlpha = 1; // reset
+
+  // Suelo Base
   ctx.fillStyle = '#060a0f';
   ctx.fillRect(0, garden.h * 0.92, w, h * 0.1);
 
@@ -411,11 +425,24 @@ function renderAt(elapsed){
     if(it.kind==='grass') drawGrass(it.blade, e);
     else if(it.kind==='stem') drawStem(it.seg,e);
     else if(it.kind==='leaf') drawLeaf(it.leaf,e);
-    else if(it.kind==='petal') drawPetal(it.petal,e, garden.palette);
+    else if(it.kind==='petal') drawPetal(it.petal,e);
     else if(it.kind==='dot') drawBaseDot(it.dot,e);
-    else if(it.kind==='glowDot') drawGlowDot(it.dot,e, garden.palette);
+    else if(it.kind==='glowDot') drawGlowDot(it.dot,e);
     else if(it.kind==='title') drawTitle(it.text, e, w, h);
   }
+
+  // Dibujar Luciérnagas Animadas (Capa superior)
+  garden.fireflies.forEach(f => {
+    const alpha = 0.3 + Math.sin(elapsed * f.speed + f.offset) * 0.5;
+    const moveY = Math.sin(elapsed * f.speed * 0.8 + f.offset) * 15;
+    const moveX = Math.cos(elapsed * f.speed * 0.5 + f.offset) * 15;
+    ctx.shadowBlur = 12; 
+    ctx.shadowColor = MAIN_PALETTE[2]; 
+    ctx.fillStyle = `rgba(255,218,71,${alpha})`;
+    ctx.beginPath(); ctx.arc(f.x + moveX, f.y + moveY, f.r, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0; // reset
+  });
+
   return allDone;
 }
 
