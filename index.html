@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Jardín Botánico Tipográfico</title>
+<title>Jardín de Flores</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
@@ -149,12 +149,14 @@ function buildFlower(rnd, cx, cy, petalCount, radius, charStr){
   
   const golden = 137.508 * Math.PI/180;
   const isLetter = !!charStr;
-  const dotMaxR = isLetter ? radius*0.55 : radius*0.35; 
+  // círculo central más chico: antes 0.55 tapaba casi toda la flor y
+  // no dejaba ver los pétalos. 0.4 deja la letra legible sin deformar.
+  const dotMaxR = isLetter ? radius*0.4 : radius*0.35; 
   
   // SOLUCIÓN DE RESOLUCIÓN: Densidad constante basada en el área (radio al cuadrado)
   const area = dotMaxR * dotMaxR;
-  // Limitamos a 2500 puntos máximos por flor para no saturar dispositivos
-  const dotCount = Math.min(2500, Math.floor(area * (isLetter ? 0.35 : 0.08))); 
+  // subimos el multiplicador para compensar el área más chica y mantener la letra nítida
+  const dotCount = Math.min(2500, Math.floor(area * (isLetter ? 0.65 : 0.08))); 
   
   const letterMap = isLetter ? createLetterMap(charStr, dotMaxR) : null;
 
@@ -251,12 +253,20 @@ function buildGarden(nameData, w, h){
     
     const baseX = startX + i * spacing;
     const scaleZ = 0.85 + z * 0.15;
-    const stepLen = h * 0.11 * scaleZ * (0.9 + rnd()*0.2);
+    // el tallo (y con él, las hojas) ya no puede crecer más de lo que
+    // permite el espacio horizontal disponible: eso es lo que antes
+    // hacía que una hoja invadiera la flor de al lado en pantallas angostas.
+    const stepLen = Math.min(h * 0.11, spacing * 0.4) * scaleZ * (0.9 + rnd()*0.2);
     
     const plant = buildPlant(rnd, baseX, groundY, stepLen, 25+rnd()*10, true);
     const petalCount = [12,15,18,21][Math.floor(rnd()*4)];
     
-    const flowerRadius = Math.max(35, Math.min(spacing * 0.55, h * 0.18));
+    // tamaño estandarizado: antes dependía de "spacing", así que un
+    // nombre corto (más espacio por flor) hacía crecer demasiado el
+    // círculo. Ahora hay un tamaño ideal fijo, y solo se achica si de
+    // verdad no entra (nombres largos, poco espacio por letra).
+    const idealRadius = Math.max(30, Math.min(56, h*0.085));
+    const flowerRadius = Math.min(idealRadius, spacing * 0.6);
     const flower = buildFlower(rnd, plant.topX, plant.topY, petalCount, flowerRadius, chars[i]);
     
     const delay = 1500 + (i * 450) + rnd()*200; 
@@ -383,17 +393,36 @@ function drawGlowDot(dot, e){
   ctx.beginPath(); ctx.arc(dot.x,dot.y,dot.r*e,0,Math.PI*2); ctx.fill();
   ctx.shadowBlur = 0; 
 }
+function wrapLines(ctx, text, maxWidth){
+  const words = text.split(' ');
+  const lines = [];
+  let line = '';
+  for(const word of words){
+    const test = line ? line + ' ' + word : word;
+    if(line && ctx.measureText(test).width > maxWidth){
+      lines.push(line);
+      line = word;
+    } else {
+      line = test;
+    }
+  }
+  if(line) lines.push(line);
+  return lines;
+}
 function drawTitle(text, e, w, h){
   ctx.save();
   ctx.globalAlpha = e;
   ctx.fillStyle = 'rgba(255, 255, 255, 0.85)';
   ctx.shadowColor = 'rgba(255,255,255,0.4)';
   ctx.shadowBlur = 10;
-  const fontSize = Math.min(w * 0.045, 28);
+  const fontSize = Math.max(13, Math.min(w * 0.032, 26));
   ctx.font = `italic 400 ${fontSize}px "Fraunces", serif`;
   ctx.textAlign = 'center';
   ctx.textBaseline = 'top';
-  ctx.fillText(text, w/2, h * 0.08); 
+  const lines = wrapLines(ctx, text, w * 0.84);
+  const lineHeight = fontSize * 1.35;
+  const startY = h * 0.06;
+  lines.forEach((ln,i) => ctx.fillText(ln, w/2, startY + i*lineHeight));
   ctx.restore();
 }
 
