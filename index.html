@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Jardín de Flores</title>
+<title>Jardín de flores</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,700;1,9..144,400&display=swap" rel="stylesheet">
@@ -104,7 +104,7 @@ function createLetterMap(char, maxRadius){
   return { data: ctx.getImageData(0,0,size,size).data, size };
 }
 
-function buildPlant(rnd, baseX, groundY, stepLen, branchAngleBase, isLetter){
+function buildPlant(rnd, baseX, groundY, trunkLen, branchLen, branchAngleBase, isLetter){
   let x=baseX, y=groundY, heading=90;
   const segs=[], leaves=[];
   function fwd(len){
@@ -113,24 +113,24 @@ function buildPlant(rnd, baseX, groundY, stepLen, branchAngleBase, isLetter){
     segs.push({x1:x,y1:y,x2:nx,y2:ny}); x=nx; y=ny;
   }
   
-  fwd(stepLen);
-  fwd(stepLen);
+  fwd(trunkLen);
+  fwd(trunkLen);
   
   let branchPoint = {x,y,heading};
   heading += branchAngleBase + (rnd()*8-4);
-  fwd(stepLen*0.65);
-  leaves.push({x:x, y:y, angle:heading, length:stepLen, width:stepLen*0.48});
+  fwd(branchLen*0.65);
+  leaves.push({x:x, y:y, angle:heading, length:branchLen, width:branchLen*0.48});
   x=branchPoint.x; y=branchPoint.y; heading=branchPoint.heading;
   
-  fwd(stepLen);
+  fwd(trunkLen);
   
   branchPoint = {x,y,heading};
   heading -= branchAngleBase + (rnd()*8-4);
-  fwd(stepLen*0.65);
-  leaves.push({x:x, y:y, angle:heading, length:stepLen, width:stepLen*0.48});
+  fwd(branchLen*0.65);
+  leaves.push({x:x, y:y, angle:heading, length:branchLen, width:branchLen*0.48});
   x=branchPoint.x; y=branchPoint.y; heading=branchPoint.heading;
 
-  if(isLetter) fwd(stepLen * 0.8); 
+  if(isLetter) fwd(trunkLen * 0.8); 
 
   segs.forEach((s,i)=> s.tone = i/(segs.length-1));
   return { segments:segs, leaves, topX:x, topY:y };
@@ -177,12 +177,13 @@ function buildFlower(rnd, cx, cy, petalCount, radius, charStr){
       }
     }
     
-    const dotObj = { x:cx+relX, y:cy+relY, r: Math.max(1.2, radius*(isGlowing?0.025:0.02)) };
+    const dotObj = { x:cx+relX, y:cy+relY, r: Math.max(1.3, radius*(isGlowing?0.032:0.02)) };
     
     if(isGlowing) glowDots.push(dotObj);
     else dots.push(dotObj);
   }
-  return { petals, dots, glowDots };
+  const centerBacking = isLetter ? {cx, cy, r: dotMaxR*1.1} : null;
+  return { petals, dots, glowDots, centerBacking };
 }
 
 function buildGrass(rnd, w, groundY){
@@ -232,7 +233,7 @@ function buildGarden(nameData, w, h){
     const scaleZ = 0.3 + z * 0.6;
     const stepLen = h * 0.08 * scaleZ * (0.8 + rnd()*0.4);
     
-    const plant = buildPlant(rnd, baseX, groundY, stepLen, 20+rnd()*15, false);
+    const plant = buildPlant(rnd, baseX, groundY, stepLen, stepLen, 20+rnd()*15, false);
     const petalCount = [8,10,12,14][Math.floor(rnd()*4)];
     const flowerRadius = Math.min(w,h)*0.09 * scaleZ * (0.7 + rnd()*0.6);
     
@@ -241,7 +242,10 @@ function buildGarden(nameData, w, h){
   }
   
   // Flores frontales (Letras)
-  const chars = nameData.chars;
+  // en pantallas angostas, mostrar demasiadas letras las apretaba
+  // demasiado y las volvía ilegibles: se limita según el ancho real.
+  const maxChars = w < 480 ? 10 : (w < 900 ? 14 : 18);
+  const chars = nameData.chars.slice(0, maxChars);
   const maxAncho = Math.min(w * 0.85, 1100);
   const spacing = maxAncho / Math.max(1, chars.length);
   const startX = (w - (spacing * (chars.length - 1))) / 2;
@@ -253,20 +257,20 @@ function buildGarden(nameData, w, h){
     
     const baseX = startX + i * spacing;
     const scaleZ = 0.85 + z * 0.15;
-    // el tallo (y con él, las hojas) ya no puede crecer más de lo que
-    // permite el espacio horizontal disponible: eso es lo que antes
-    // hacía que una hoja invadiera la flor de al lado en pantallas angostas.
-    const stepLen = Math.min(h * 0.11, spacing * 0.4) * scaleZ * (0.9 + rnd()*0.2);
+    // el tallo ahora crece según el alto de pantalla, sin importar
+    // cuántas letras haya: por eso ya no queda "al nivel del pasto"
+    // cuando el nombre es largo. Las ramas/hojas sí se limitan al
+    // espacio horizontal disponible, para no invadir la flor vecina.
+    const trunkLen = h * 0.11 * scaleZ * (0.9 + rnd()*0.2);
+    const branchLen = Math.min(trunkLen*0.7, spacing * 0.38);
     
-    const plant = buildPlant(rnd, baseX, groundY, stepLen, 25+rnd()*10, true);
+    const plant = buildPlant(rnd, baseX, groundY, trunkLen, branchLen, 25+rnd()*10, true);
     const petalCount = [12,15,18,21][Math.floor(rnd()*4)];
     
-    // tamaño estandarizado: antes dependía de "spacing", así que un
-    // nombre corto (más espacio por flor) hacía crecer demasiado el
-    // círculo. Ahora hay un tamaño ideal fijo, y solo se achica si de
-    // verdad no entra (nombres largos, poco espacio por letra).
+    // tamaño estandarizado, con un piso más alto para que la letra
+    // de puntos siga siendo legible incluso si el nombre es largo.
     const idealRadius = Math.max(30, Math.min(56, h*0.085));
-    const flowerRadius = Math.min(idealRadius, spacing * 0.6);
+    const flowerRadius = Math.max(24, Math.min(idealRadius, spacing * 0.62));
     const flower = buildFlower(rnd, plant.topX, plant.topY, petalCount, flowerRadius, chars[i]);
     
     const delay = 1500 + (i * 450) + rnd()*200; 
@@ -300,6 +304,11 @@ function buildTimeline(garden){
     });
     
     const dotsDelay = flowerDelay + 700;
+
+    if(plant.isLetter && plant.flower.centerBacking){
+      items.push({ z:plant.z, delay:dotsDelay, duration:400, kind:'centerBack', back:plant.flower.centerBacking, ease:easeOutCubic });
+    }
+
     plant.flower.dots.forEach((dot,k) => {
       items.push({ z:plant.z, delay:dotsDelay+(k*3), duration:300, kind:'dot', dot, ease:easeOutCubic });
     });
@@ -388,10 +397,15 @@ function drawBaseDot(dot,e){
 }
 function drawGlowDot(dot, e){
   ctx.shadowColor = MAIN_PALETTE[2]; 
-  ctx.shadowBlur = 10;
-  ctx.fillStyle = '#fff4d9'; 
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = '#fff8ea'; 
   ctx.beginPath(); ctx.arc(dot.x,dot.y,dot.r*e,0,Math.PI*2); ctx.fill();
   ctx.shadowBlur = 0; 
+}
+function drawCenterBack(back, e){
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = 'rgba(20,10,4,.5)';
+  ctx.beginPath(); ctx.arc(back.cx, back.cy, back.r*e, 0, Math.PI*2); ctx.fill();
 }
 function wrapLines(ctx, text, maxWidth){
   const words = text.split(' ');
@@ -457,6 +471,7 @@ function renderAt(elapsed){
     else if(it.kind==='petal') drawPetal(it.petal,e);
     else if(it.kind==='dot') drawBaseDot(it.dot,e);
     else if(it.kind==='glowDot') drawGlowDot(it.dot,e);
+    else if(it.kind==='centerBack') drawCenterBack(it.back,e);
     else if(it.kind==='title') drawTitle(it.text, e, w, h);
   }
 
